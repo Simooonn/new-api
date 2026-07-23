@@ -44,8 +44,7 @@ rsvg-convert -w 64 -h 64 favicon.svg > export/favicon-64.png
 
 | 目标 | 文件 |
 |---|---|
-| `web/default/public/` | `logo.png` / `logo.svg` / `favicon.ico` / `favicon.svg` |
-| `web/classic/public/` | 同上 |
+| `web/public/` | `logo.png` / `logo.svg` / `favicon.ico` / `favicon.svg` |
 | `electron/` | `icon.png`(app-icon-512) / tray 模板 |
 | `new-api-docs-v1/public/` | `favicon.ico` + `assets/logo.png` + `assets/newapi.svg` |
 
