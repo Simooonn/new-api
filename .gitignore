@@ -25,6 +25,11 @@ tiktoken_cache
 plans
 .claude
 .cursor
+.omc/
+
+# Local docker overrides (keep secrets/passwords out of the tracked compose file)
+docker-compose.override.yml
+docker-compose.*.local.yml
 
 electron/node_modules
 electron/dist
