@@ -1,11 +1,18 @@
-// Create AceHub "aperture" tray icons for macOS / Windows.
+// Create AceHub tray icons for macOS / Windows.
 // Run: node create-tray-icon.js
-// Prefer: npm install canvas  (otherwise falls back to branding/export PNGs)
+// Prefer: npm install canvas  (otherwise falls back to branding PNGs)
 
 const fs = require('fs');
 const path = require('path');
 
-const brandExport = path.join(__dirname, '..', 'branding', 'acehub', 'export');
+// Repo-level brand kit: AceHub/branding/set-03-multicolor-ring
+const brandExport = path.join(
+  __dirname,
+  '..',
+  '..',
+  'branding',
+  'set-03-multicolor-ring'
+);
 
 function drawAperture(ctx, size, color) {
   const s = size;
@@ -117,7 +124,9 @@ function writeFromBrandExport() {
     }
     fs.copyFileSync(src, dest);
   }
-  console.log('Tray icons copied from branding/acehub/export (install canvas for monochrome templates).');
+  console.log(
+    'Tray icons copied from branding/set-03-multicolor-ring (install canvas for monochrome templates).'
+  );
 }
 
 try {
