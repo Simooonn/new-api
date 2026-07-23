@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub alt concept: hub-and-spoke topology inside a hexagon shield -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="83" y1="56" x2="429" y2="456">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <!-- hexagon frame -->
+  <path d="M256 56 L429 156 L429 356 L256 456 L83 356 L83 156 Z"
+        fill="none" stroke="url(#g)" stroke-width="36" stroke-linejoin="round"/>
+  <!-- spokes -->
+  <path d="M256 256 L256 150 M256 256 L164 336 M256 256 L348 336"
+        stroke="url(#g)" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <!-- edge nodes -->
+  <circle cx="256" cy="150" r="24" fill="url(#g)"/>
+  <circle cx="164" cy="336" r="24" fill="url(#g)"/>
+  <circle cx="348" cy="336" r="24" fill="url(#g)"/>
+  <!-- hub -->
+  <circle cx="256" cy="256" r="38" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="15" fill="#FFFFFF"/>
+</svg>

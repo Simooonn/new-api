@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub primary icon: letter "A" drawn as a network graph (3 edge nodes + 1 hub) -->
+  <defs>
+    <!-- userSpaceOnUse: objectBoundingBox breaks on zero-height horizontal strokes (the crossbar) -->
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="96" y1="96" x2="416" y2="416">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <!-- legs of the "A" -->
+  <path d="M256 104 L136 408 M256 104 L376 408" stroke="url(#g)" stroke-width="44" stroke-linecap="round" fill="none"/>
+  <!-- crossbar -->
+  <path d="M170 322 L342 322" stroke="url(#g)" stroke-width="40" stroke-linecap="round" fill="none"/>
+  <!-- edge nodes: apex + two feet -->
+  <circle cx="256" cy="104" r="34" fill="url(#g)"/>
+  <circle cx="136" cy="408" r="34" fill="url(#g)"/>
+  <circle cx="376" cy="408" r="34" fill="url(#g)"/>
+  <!-- hub node at the center of the crossbar -->
+  <circle cx="256" cy="322" r="48" fill="url(#g)"/>
+  <circle cx="256" cy="322" r="20" fill="#FFFFFF"/>
+</svg>

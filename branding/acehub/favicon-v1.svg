@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub favicon: bolder strokes, simplified for 16-32px rendering -->
+  <defs>
+    <!-- userSpaceOnUse: objectBoundingBox breaks on zero-height horizontal strokes (the crossbar) -->
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="96" y1="96" x2="416" y2="416">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <path d="M256 96 L128 416 M256 96 L384 416" stroke="url(#g)" stroke-width="60" stroke-linecap="round" fill="none"/>
+  <path d="M166 322 L346 322" stroke="url(#g)" stroke-width="54" stroke-linecap="round" fill="none"/>
+  <circle cx="256" cy="322" r="58" fill="url(#g)"/>
+  <circle cx="256" cy="322" r="24" fill="#FFFFFF"/>
+</svg>

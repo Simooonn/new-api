@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub v3 "flow-orbit": a thin orbit ring behind the flow arch, drawn as
+       three explicit round-capped arcs (left / right / bottom) so every gap at
+       a stream crossing is clean; the apex breaks out through the orbit top. -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="124" y1="95" x2="388" y2="450">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <!-- orbit arcs, circle c(256,300) r148 -->
+  <path d="M118.8 355.4 A148 148 0 0 1 153.2 193.6" fill="none" stroke="url(#g)" stroke-width="24" stroke-linecap="round"/>
+  <path d="M358.8 193.6 A148 148 0 0 1 393.2 355.4" fill="none" stroke="url(#g)" stroke-width="24" stroke-linecap="round"/>
+  <path d="M311.4 437.2 A148 148 0 0 1 200.6 437.2" fill="none" stroke="url(#g)" stroke-width="24" stroke-linecap="round"/>
+  <!-- left stream -->
+  <path d="M150 424 C 168 298, 202 198, 250 120" stroke="url(#g)" stroke-width="56" stroke-linecap="round" fill="none"/>
+  <!-- right stream -->
+  <path d="M362 424 C 344 298, 310 198, 262 120" stroke="url(#g)" stroke-width="56" stroke-linecap="round" fill="none"/>
+  <!-- hub -->
+  <circle cx="256" cy="320" r="44" fill="url(#g)"/>
+  <circle cx="256" cy="320" r="18" fill="#FFFFFF"/>
+</svg>

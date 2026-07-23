@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub v3 "flow-asym": flow with asymmetric streams — one heavy, one
+       light, the light one starting higher — to add motion and direction. -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="124" y1="95" x2="388" y2="450">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <!-- heavy stream -->
+  <path d="M150 424 C 168 298, 202 198, 250 122" stroke="url(#g)" stroke-width="62" stroke-linecap="round" fill="none"/>
+  <!-- light stream, shorter, cap tucked under the heavy apex -->
+  <path d="M356 404 C 340 292, 308 200, 268 136" stroke="url(#g)" stroke-width="38" stroke-linecap="round" fill="none"/>
+  <!-- hub -->
+  <circle cx="256" cy="320" r="44" fill="url(#g)"/>
+  <circle cx="256" cy="320" r="18" fill="#FFFFFF"/>
+</svg>

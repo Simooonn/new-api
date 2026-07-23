@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub app icon: aperture glyph on a dark rounded-square tile -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="108" y1="80" x2="404" y2="432">
+      <stop offset="0" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="#0B1220"/>
+  <g transform="translate(256 256) scale(0.78) translate(-256 -256)">
+    <path d="M256 96 C 346 96, 393 261, 327 327" fill="none" stroke="url(#g)" stroke-width="44" stroke-linecap="round"/>
+    <path d="M256 96 C 346 96, 393 261, 327 327" fill="none" stroke="url(#g)" stroke-width="44" stroke-linecap="round" transform="rotate(120 256 256)"/>
+    <path d="M256 96 C 346 96, 393 261, 327 327" fill="none" stroke="url(#g)" stroke-width="44" stroke-linecap="round" transform="rotate(240 256 256)"/>
+    <circle cx="256" cy="256" r="36" fill="url(#g)"/>
+    <!-- inner dot uses tile color so the hub reads as a "port" -->
+    <circle cx="256" cy="256" r="15" fill="#0B1220"/>
+  </g>
+</svg>

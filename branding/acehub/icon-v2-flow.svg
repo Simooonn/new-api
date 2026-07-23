@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub v2 "flow": two arch-like streams (monotonic curvature, no S-bend)
+       converging into a rounded apex, hub ring floating between them. -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="124" y1="95" x2="388" y2="450">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <!-- left stream -->
+  <path d="M150 424 C 168 298, 202 198, 250 120" stroke="url(#g)" stroke-width="56" stroke-linecap="round" fill="none"/>
+  <!-- right stream -->
+  <path d="M362 424 C 344 298, 310 198, 262 120" stroke="url(#g)" stroke-width="56" stroke-linecap="round" fill="none"/>
+  <!-- hub -->
+  <circle cx="256" cy="320" r="44" fill="url(#g)"/>
+  <circle cx="256" cy="320" r="18" fill="#FFFFFF"/>
+</svg>

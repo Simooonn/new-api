@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub alt concept: ace spade with a hub "port" cut out of the center -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="120" y1="72" x2="392" y2="446">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#g)" fill-rule="evenodd" d="
+    M256 72
+    C 214 152, 120 204, 120 292
+    C 120 348, 166 386, 218 376
+    C 231 373.5, 243 367, 251 358
+    C 247 396, 232 424, 206 446
+    L 306 446
+    C 280 424, 265 396, 261 358
+    C 269 367, 281 373.5, 294 376
+    C 346 386, 392 348, 392 292
+    C 392 204, 298 152, 256 72
+    Z
+    M256 262
+    a 38 38 0 1 0 0.001 0
+    Z"/>
+</svg>

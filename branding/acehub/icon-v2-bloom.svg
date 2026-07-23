@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AceHub v2 "bloom": solid softened bud silhouette. Bottom edge is a smooth
+       shallow concave arc (no cusp), center port punched out. -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="108" y1="64" x2="404" y2="436">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#g)" fill-rule="evenodd" d="
+    M256 64
+    C 208 148, 108 204, 108 298
+    C 108 372, 152 424, 214 434
+    C 230 424, 282 424, 298 434
+    C 360 424, 404 372, 404 298
+    C 404 204, 304 148, 256 64
+    Z
+    M256 226
+    a 46 46 0 1 0 0.001 0
+    Z"/>
+</svg>
