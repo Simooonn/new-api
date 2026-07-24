@@ -121,8 +121,18 @@ export function TelegramBindDialog({
     return () => window.removeEventListener('message', handleBindResult)
   }, [flowToken, onOpenChange, onSuccess, open, t])
 
+  // Base UI Dialog portals content after open; wait for the mounted container
+  // node (callback ref) before injecting the Telegram widget script.
+  const [widgetContainer, setWidgetContainer] = useState<HTMLDivElement | null>(
+    null
+  )
+  const setWidgetRef = useCallback((node: HTMLDivElement | null) => {
+    widgetRef.current = node
+    setWidgetContainer(node)
+  }, [])
+
   useEffect(() => {
-    const container = widgetRef.current
+    const container = widgetContainer
     if (!container || !callbackUrl) return
 
     container.replaceChildren()
@@ -136,7 +146,7 @@ export function TelegramBindDialog({
     container.appendChild(script)
 
     return () => container.replaceChildren()
-  }, [botName, callbackUrl])
+  }, [botName, callbackUrl, widgetContainer])
 
   return (
     <Dialog
@@ -184,7 +194,7 @@ export function TelegramBindDialog({
               </Button>
             </div>
           )}
-          <div ref={widgetRef} className='flex min-h-10 justify-center' />
+          <div ref={setWidgetRef} className='flex min-h-10 justify-center' />
         </div>
 
         <p className='text-muted-foreground text-center text-xs'>

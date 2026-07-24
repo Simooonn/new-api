@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
@@ -38,8 +38,15 @@ function normalizeTelegramBotName(value: string) {
 
 export function TelegramLoginDialog(props: TelegramLoginDialogProps) {
   const { t } = useTranslation()
-  const widgetContainer = useRef<HTMLDivElement | null>(null)
   const authorizationHandler = useRef(props.onAuthorization)
+  // Base UI Dialog portals content only after open. A plain ref is often still
+  // null in the open-transition effect, so track the mounted node explicitly.
+  const [widgetContainer, setWidgetContainer] = useState<HTMLDivElement | null>(
+    null
+  )
+  const widgetContainerRef = useCallback((node: HTMLDivElement | null) => {
+    setWidgetContainer(node)
+  }, [])
   const [callbackName] = useState(
     () => `newApiTelegramLogin${++telegramCallbackSequence}`
   )
@@ -52,9 +59,18 @@ export function TelegramLoginDialog(props: TelegramLoginDialogProps) {
   }, [props.onAuthorization])
 
   useEffect(() => {
-    const container = widgetContainer.current
+    if (!props.open) {
+      setWidgetState('idle')
+      return
+    }
+
+    const container = widgetContainer
     const botName = normalizeTelegramBotName(props.botName)
-    if (!props.open || !container || !botName) return
+    if (!container || !botName) {
+      // Dialog portal may not have mounted the body yet; wait for the callback ref.
+      setWidgetState('loading')
+      return
+    }
 
     let cancelled = false
     let emptyCheckTimer: number | undefined
@@ -107,7 +123,7 @@ export function TelegramLoginDialog(props: TelegramLoginDialogProps) {
       container.replaceChildren()
       delete browserWindow[callbackName]
     }
-  }, [callbackName, props.botName, props.open])
+  }, [callbackName, props.botName, props.open, widgetContainer])
 
   const showSpinner = widgetState === 'loading' || props.pending
   const showHint = widgetState === 'empty' && !props.pending
@@ -146,7 +162,7 @@ export function TelegramLoginDialog(props: TelegramLoginDialogProps) {
         )}
         {/* Keep mounted and visible so Telegram can inject the login control */}
         <div
-          ref={widgetContainer}
+          ref={widgetContainerRef}
           className={
             showSpinner || showFailed || showHint
               ? 'pointer-events-none opacity-0'
