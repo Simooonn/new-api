@@ -113,6 +113,8 @@ Inside `relaykit/`, use `kitutil.*` from `relaykit/relayconvert/kitutil/json.go`
 - Migrations must work on all three databases. For SQLite, use `ALTER TABLE ... ADD COLUMN` instead of `ALTER COLUMN` (see `model/main.go` for patterns).
 - Avoid GORM boolean default tags such as `gorm:"default:true"` when the default is a business rule already enforced by code. MySQL and PostgreSQL can normalize boolean defaults differently, causing GORM `AutoMigrate` to repeatedly issue `ALTER TABLE` on restart. Prefer setting these defaults in request/model normalization, hooks, constructors, or service logic; do not replace `default:true` with `default:1` unless the behavior is verified across SQLite, MySQL, and PostgreSQL.
 
+**Fork release rules (mandatory read gate):** `.agents/rules/fork-release.md` holds the fork's release conventions: rollback compatibility between adjacent releases (rollback switches the image and never restores the database), upstream merge checks, and the release and upgrade commands. Any task that adds or changes models, GORM tags, migrations, `AutoMigrate` lists, backfills, or option value formats, merges upstream into `feature/ace`, or cuts or deploys a release MUST read that file in full before planning, coding, or reviewing, and follow every rule in it.
+
 **Relay and provider behavior:**
 
 - When implementing a new channel, confirm whether the provider supports `StreamOptions`; if supported, add the channel to `streamSupportedChannels`.
