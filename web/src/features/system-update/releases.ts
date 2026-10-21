@@ -125,3 +125,14 @@ export function selectLatestRelease(payload: unknown): SystemRelease | null {
 export function getSystemReleaseUrl(release: SystemRelease): string {
   return `https://github.com/${SYSTEM_RELEASE_REPOSITORY}/releases/tag/${encodeURIComponent(release.tag_name)}`
 }
+
+/**
+ * Upstream alpha/beta/rc tags are pre-releases by name. A fork build keeps its
+ * upstream base in the tag (`-rc.44-ace.2`), so only the GitHub flag counts.
+ */
+export function isSystemPrerelease(release: SystemRelease): boolean {
+  if (release.prerelease) return true
+  const version = parseSystemVersion(release.tag_name)
+  if (!version || version.build > 0n) return false
+  return version.stage < releaseStages.stable
+}

@@ -188,6 +188,9 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"GET /api/system-info/instances":               accessTokenScopeRule("ops:read"),
 	"DELETE /api/system-info/stale-instances":      accessTokenScopeRule("ops:write"),
 	"DELETE /api/system-info/instances/:node_name": accessTokenScopeRule("ops:write"),
+	// Replacing the running server is only allowed from a signed-in session.
+	"GET /api/system/upgrade":  accessTokenSessionRule,
+	"POST /api/system/upgrade": accessTokenSessionRule,
 
 	// router/api-router.go: /api/plugin/task
 	"GET /api/plugin/task":                           accessTokenScopeRule("plugin:read"),

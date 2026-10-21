@@ -20,17 +20,23 @@ import { lazy, Suspense, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
+import { StatusBadge } from '@/components/status-badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatTimestampToDate } from '@/lib/format'
 
-import { getSystemReleaseUrl, parseSystemVersion } from './releases'
+import { getSystemReleaseUrl, isSystemPrerelease } from './releases'
+import {
+  SystemUpgradeButton,
+  SystemUpgradeProgress,
+} from './system-upgrade-control'
 import {
   getUpdateErrorMessage,
   type useSystemUpdate,
 } from './use-system-update'
+import { useSystemUpgrade } from './use-system-upgrade'
 
 const ReleaseMarkdown = lazy(() =>
   import('@/components/ui/markdown').then((module) => ({
@@ -48,13 +54,11 @@ type SystemUpdateDialogProps = {
 export function SystemUpdateDialog(props: SystemUpdateDialogProps) {
   const { t } = useTranslation()
   const update = props.update
+  const upgrade = useSystemUpgrade()
   const release = update.release
   const snapshot = update.snapshot
   const releaseUrl = release ? getSystemReleaseUrl(release) : null
-  const isPrerelease =
-    release &&
-    (release.prerelease ||
-      (parseSystemVersion(release.tag_name)?.stage ?? 3) < 3)
+  const isPrerelease = release ? isSystemPrerelease(release) : false
   const canIgnore = release && (update.hasUpdate || update.comparison === null)
   let statusText = t('Updates have not been checked yet.')
   if (update.checking) {
@@ -109,6 +113,9 @@ export function SystemUpdateDialog(props: SystemUpdateDialogProps) {
             <Button
               nativeButton={false}
               role='link'
+              variant={
+                upgrade.available && update.hasUpdate ? 'outline' : 'default'
+              }
               render={
                 <a
                   href={releaseUrl}
@@ -119,6 +126,13 @@ export function SystemUpdateDialog(props: SystemUpdateDialogProps) {
             >
               {t('Go to GitHub')}
             </Button>
+          )}
+          {release && update.hasUpdate && (
+            <SystemUpgradeButton
+              upgrade={upgrade}
+              targetVersion={release.tag_name}
+              currentVersion={update.currentVersion}
+            />
           )}
         </>
       }
@@ -134,6 +148,13 @@ export function SystemUpdateDialog(props: SystemUpdateDialogProps) {
           <dt className='text-muted-foreground'>{t('Latest version')}</dt>
           <dd className='flex flex-wrap items-center gap-2 font-medium break-all'>
             {release?.tag_name || t('Unknown')}
+            {update.hasUpdate && (
+              <StatusBadge
+                label={t('Update available')}
+                variant='success'
+                copyable={false}
+              />
+            )}
             {isPrerelease && (
               <Badge variant='warning'>{t('Pre-release')}</Badge>
             )}
@@ -156,6 +177,7 @@ export function SystemUpdateDialog(props: SystemUpdateDialogProps) {
           {statusText}
         </p>
       )}
+      <SystemUpgradeProgress status={upgrade.status} />
       {!update.online && (
         <Alert>
           <AlertDescription>

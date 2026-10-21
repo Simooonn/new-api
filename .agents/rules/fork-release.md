@@ -19,3 +19,9 @@ Conventions for the Simooonn/new-api fork: releases cut from `feature/ace`, and 
 - A tag runs `.github/workflows/fork-ghcr-image.yml` (`ghcr.io/simooonn/new-api:<tag>` and `:latest`, linux/amd64) and `.github/workflows/release.yml` (binaries). The upstream Docker Hub workflows stay disabled in the fork.
 - The admin update check reads the fork's releases through the build-time `VITE_UPDATE_REPOSITORY` override. Do not replace the upstream default in code; it is a protected identifier in `AGENTS.md`.
 - Upgrade production from the compose project directory with `./docker-upgrade.sh upgrade <tag>`, roll back with `./docker-upgrade.sh rollback`. The script recreates only the `new-api` service and does not back up the database unless `BACKUP=1` is set.
+
+**Web upgrades:** Root users can upgrade from the system update dialog. The container never gets docker access; it writes a request into a control directory and a host systemd agent runs `docker-upgrade.sh`.
+
+- The agent is `deploy/upgrade-agent/` (path unit on `upgrade-control/request.json`, a oneshot service, and a heartbeat timer). Install it once per host with `deploy/upgrade-agent/install.sh install <compose project dir>`, then run `./docker-upgrade.sh enable-web-upgrade` to mount `upgrade-control` into the service and set `UPGRADE_CONTROL_DIR`. Both live in `docker-compose.override.yml`, which `docker-upgrade.sh` rewrites with the mount kept; `docker-compose.yml` stays untouched.
+- The agent accepts only tags matching `^v[0-9]+(\.[0-9]+){2,}[0-9A-Za-z.-]*-ace\.[1-9][0-9]*$` from `ghcr.io/simooonn/new-api`. That pattern is duplicated in `service/system_upgrade.go` and `deploy/upgrade-agent/new-api-upgrade-agent.sh`; change both together and keep `deploy/upgrade-agent/agent_test.sh` passing.
+- Without `UPGRADE_CONTROL_DIR` the feature is off and the dialog behaves as upstream. Do NOT mount the docker socket into the container.

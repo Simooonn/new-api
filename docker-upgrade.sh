@@ -9,6 +9,7 @@
 #   ./docker-upgrade.sh upgrade <image|tag>   # e.g. v1.0.0-rc.44-ace.2
 #   ./docker-upgrade.sh rollback [image]      # default: previous image
 #   ./docker-upgrade.sh status
+#   ./docker-upgrade.sh enable-web-upgrade    # mount the agent control dir
 #
 # Upgrade steps: pull -> pin the current image under a rollback tag ->
 # recreate new-api -> wait for /api/status to report the expected version.
@@ -29,6 +30,8 @@
 #   HEALTH_TIMEOUT   seconds to wait for health (default: 180)
 #   BACKUP=1         take a pg_dump before upgrading (default: off)
 #   KEEP_BACKUPS     number of dumps kept in .upgrade/backups (default: 5)
+#   CONTROL_DIR      web upgrade control dir mounted into the service
+#                    (default: $PROJECT_DIR/upgrade-control when it exists)
 #   DOCKER           docker command (default: "docker", or "sudo -n docker"
 #                    when the socket is not accessible)
 
@@ -48,6 +51,12 @@ STATE_DIR="$PROJECT_DIR/.upgrade"
 BACKUP_DIR="$STATE_DIR/backups"
 OVERRIDE_FILE="$PROJECT_DIR/docker-compose.override.yml"
 HISTORY_LOG="$STATE_DIR/history.log"
+# Created by deploy/upgrade-agent/install.sh; when present it is mounted into
+# the service so the web console can request upgrades.
+CONTROL_DIR="${CONTROL_DIR:-}"
+if [ -z "$CONTROL_DIR" ] && [ -d "$PROJECT_DIR/upgrade-control" ]; then
+  CONTROL_DIR="$PROJECT_DIR/upgrade-control"
+fi
 
 if [ -z "${DOCKER:-}" ]; then
   if docker info >/dev/null 2>&1; then
@@ -79,7 +88,7 @@ die() {
 }
 
 usage() {
-  sed -n '2,33p' "$0"
+  sed -n '2,36p' "$0"
 }
 
 compose() {
@@ -138,12 +147,19 @@ print((d.get("data") or {}).get("version") or "")'
 
 write_override() {
   local image="$1"
-  cat > "$OVERRIDE_FILE" <<EOF
-# Managed by docker-upgrade.sh. Pins the image of the $SERVICE service.
-services:
-  $SERVICE:
-    image: $image
-EOF
+  {
+    echo "# Managed by docker-upgrade.sh. Pins the image of the $SERVICE service."
+    echo "services:"
+    echo "  $SERVICE:"
+    echo "    image: $image"
+    # The web upgrade agent's control dir rides along so a rewrite keeps it.
+    if [ -n "$CONTROL_DIR" ]; then
+      echo "    volumes:"
+      echo "      - $CONTROL_DIR:/upgrade-control"
+      echo "    environment:"
+      echo "      - UPGRADE_CONTROL_DIR=/upgrade-control"
+    fi
+  } > "$OVERRIDE_FILE"
 }
 
 wait_healthy() {
@@ -249,6 +265,21 @@ cmd_status() {
   if [ -d "$BACKUP_DIR" ]; then
     echo "latest backup: $(ls -t "$BACKUP_DIR" 2>/dev/null | head -1)"
   fi
+  echo "web upgrade control dir: ${CONTROL_DIR:-<not installed>}"
+}
+
+# Mount the control dir into the running image so the web console can request
+# upgrades. Recreates only the service; the version stays the same.
+cmd_enable_web_upgrade() {
+  local image version
+  [ -n "$CONTROL_DIR" ] && [ -d "$CONTROL_DIR" ] ||
+    die "control dir not found; run deploy/upgrade-agent/install.sh install first"
+  image="$(running_image)"
+  [ -n "$image" ] || die "service '$SERVICE' has no running container"
+  version="$(reported_version || true)"
+  log "enabling web upgrades for $image (control dir $CONTROL_DIR)"
+  switch_to "$image" "$version" || die "service did not become healthy"
+  log "web upgrades enabled"
 }
 
 [ -f "$PROJECT_DIR/docker-compose.yml" ] || die "docker-compose.yml not found in $PROJECT_DIR"
@@ -260,6 +291,7 @@ case "${1:-}" in
   upgrade) shift; cmd_upgrade "$@" ;;
   rollback) shift; cmd_rollback "$@" ;;
   status) cmd_status ;;
+  enable-web-upgrade) cmd_enable_web_upgrade ;;
   -h|--help|"") usage ;;
   *) usage; exit 1 ;;
 esac

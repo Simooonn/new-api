@@ -1,0 +1,8 @@
+[Unit]
+Description=Report that the new-api upgrade agent is installed
+
+[Service]
+Type=oneshot
+Environment=PROJECT_DIR=@PROJECT_DIR@
+Environment=CONTROL_DIR=@CONTROL_DIR@
+ExecStart=@PROJECT_DIR@/deploy/upgrade-agent/new-api-upgrade-agent.sh heartbeat

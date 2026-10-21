@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for new-api web upgrade requests
+
+[Path]
+PathExists=@CONTROL_DIR@/request.json
+Unit=new-api-upgrade-agent.service
+
+[Install]
+WantedBy=multi-user.target

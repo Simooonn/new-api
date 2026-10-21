@@ -18,7 +18,11 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
-import { compareSystemVersions, selectLatestRelease } from '../releases'
+import {
+  compareSystemVersions,
+  isSystemPrerelease,
+  selectLatestRelease,
+} from '../releases'
 
 async function loadWithRepositoryEnv(value: string | undefined) {
   vi.stubEnv('VITE_UPDATE_REPOSITORY', value)
@@ -63,9 +67,7 @@ describe('release repository', () => {
           tag_name: 'v1.0.0-rc.44-ace.1',
           prerelease: false,
         })
-      ).toBe(
-        `https://github.com/${repository}/releases/tag/v1.0.0-rc.44-ace.1`
-      )
+      ).toBe(`https://github.com/${repository}/releases/tag/v1.0.0-rc.44-ace.1`)
     }
   )
 })
@@ -143,4 +145,22 @@ describe('system release ordering', () => {
     expect(() => selectLatestRelease({ message: 'bad response' })).toThrow()
     expect(() => selectLatestRelease([{ tag_name: 42 }])).toThrow()
   })
+})
+
+describe('pre-release detection', () => {
+  test.each([
+    ['v1.0.0-rc.44-ace.2', false, false],
+    ['v1.0.0-rc.44-ace.2', true, true],
+    ['v1.0.0-ace.1', false, false],
+    ['v1.0.0-rc.45', false, true],
+    ['v1.0.0-beta.1', false, true],
+    ['v1.0.0', false, false],
+    ['v0.13.1-patch.1', false, false],
+    ['v1.0.0', true, true],
+  ])(
+    'treats %s with GitHub prerelease=%s as pre-release: %s',
+    (tag, prerelease, expected) => {
+      expect(isSystemPrerelease({ tag_name: tag, prerelease })).toBe(expected)
+    }
+  )
 })

@@ -242,6 +242,43 @@ describe('administrator update entry', () => {
     ).toHaveLength(2)
   })
 
+  test.each([
+    ['v1.0.0-rc.44-ace.1', true],
+    ['v1.0.0-rc.44-ace.2', false],
+  ])(
+    'labels the fork release v1.0.0-rc.44-ace.2 for server version %s with an update badge: %s',
+    async (serverVersion, expectUpdate) => {
+      const user = userEvent.setup()
+      fetchMock.mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify([
+              { ...release, tag_name: 'v1.0.0-rc.44-ace.2', prerelease: false },
+            ]),
+            { headers: { 'Content-Type': 'application/json' } }
+          )
+      )
+      client.setQueryData(STATUS_QUERY_KEY, { version: serverVersion })
+      render(<SystemUpdateAction compact={false} />, { wrapper: Wrapper })
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      await user.click(screen.getByRole('button'))
+      const dialog = await screen.findByRole('dialog', {
+        name: 'System updates',
+      })
+      expect(
+        within(dialog).getAllByText('v1.0.0-rc.44-ace.2', { selector: 'dd' })
+      ).toHaveLength(expectUpdate ? 1 : 2)
+      expect(within(dialog).queryByText('Pre-release')).not.toBeInTheDocument()
+      if (expectUpdate) {
+        expect(within(dialog).getByText('Update available')).toBeInTheDocument()
+      } else {
+        expect(
+          within(dialog).queryByText('Update available')
+        ).not.toBeInTheDocument()
+      }
+    }
+  )
+
   test.each(['', 'v0.0.0'])(
     'shows an unknown current version for %s and allows ignoring the fetched release',
     async (version) => {

@@ -562,6 +562,12 @@ const AUDIT_TEMPLATES: Record<string, string> = {
   // Logs
   'log.clear': 'Cleared historical logs',
   'log.cleanup_start': 'Log cleanup task started.',
+  // System upgrade
+  'system.upgrade_request': 'Requested an upgrade from {{from}} to {{tag}}',
+  'system.upgrade_rejected': 'Upgrade to {{tag}} was rejected: {{reason}}',
+  'system.upgrade_succeeded': 'Upgraded from {{from}} to {{tag}}',
+  'system.upgrade_failed':
+    'Upgrade from {{from}} to {{tag}} failed: {{reason}}',
   // Generic middleware fallback
   generic: '{{method}} {{route}}',
 }

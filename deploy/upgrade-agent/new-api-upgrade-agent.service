@@ -1,0 +1,12 @@
+[Unit]
+Description=Run a new-api upgrade requested from the web console
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=PROJECT_DIR=@PROJECT_DIR@
+Environment=CONTROL_DIR=@CONTROL_DIR@
+Environment=IMAGE_REPO=ghcr.io/simooonn/new-api
+ExecStart=@PROJECT_DIR@/deploy/upgrade-agent/new-api-upgrade-agent.sh run
+TimeoutStartSec=900
