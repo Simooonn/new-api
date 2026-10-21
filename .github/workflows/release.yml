@@ -13,6 +13,10 @@ on:
       - '*'
       - '!*-alpha*'
 
+env:
+  # Forks check their own releases for updates; upstream keeps the built-in default.
+  VITE_UPDATE_REPOSITORY: ${{ github.repository != 'QuantumNous/new-api' && github.repository || '' }}
+
 jobs:
   linux:
     name: Linux Release

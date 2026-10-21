@@ -28,11 +28,16 @@ export const systemReleaseSchema = z.object({
 
 export type SystemRelease = z.infer<typeof systemReleaseSchema>
 
+/** Builds may point update checks at a fork's releases; defaults to upstream. */
+export const SYSTEM_RELEASE_REPOSITORY: string =
+  import.meta.env.VITE_UPDATE_REPOSITORY?.trim() || 'QuantumNous/new-api'
+
 type SystemVersion = {
   core: bigint[]
   stage: number
   sequence: bigint
   revision: bigint
+  build: bigint
 }
 
 const releaseStages: Record<string, number> = {
@@ -43,16 +48,21 @@ const releaseStages: Record<string, number> = {
   patch: 4,
 }
 
-/** Project tags include post-release patches and historical numeric revisions. */
+/**
+ * Project tags include post-release patches and historical numeric revisions.
+ * Fork builds append `-ace.N` to the upstream tag they are based on, which
+ * sorts after that tag and before the next upstream release.
+ */
 export function parseSystemVersion(
   value: string | null | undefined
 ): SystemVersion | null {
   const match = value
     ?.trim()
     .match(
-      /^v?(\d+(?:\.\d+){2,})(?:-(alpha|beta|rc|patch)(?:\.(\d+))?(?:-i18nfix\.(\d+))?)?(?:\+[\da-zA-Z.-]+)?$/
+      /^v?(\d+(?:\.\d+){2,})(?:-(alpha|beta|rc|patch)(?:\.(\d+))?(?:-i18nfix\.(\d+))?)?(?:-ace\.(\d+))?(?:\+[\da-zA-Z.-]+)?$/
     )
   if (!match || (match[4] && match[2] !== 'rc')) return null
+  if (match[5] && BigInt(match[5]) === 0n) return null
 
   const core = match[1].split('.').map((part) => BigInt(part))
   if (core.every((part) => part === 0n)) return null
@@ -62,6 +72,7 @@ export function parseSystemVersion(
     stage: releaseStages[match[2] ?? 'stable'],
     sequence: BigInt(match[3] ?? '0'),
     revision: BigInt(match[4] ?? '0'),
+    build: BigInt(match[5] ?? '0'),
   }
 }
 
@@ -81,6 +92,7 @@ export function compareSystemVersions(
   if (a.stage !== b.stage) return a.stage < b.stage ? -1 : 1
   if (a.sequence !== b.sequence) return a.sequence < b.sequence ? -1 : 1
   if (a.revision !== b.revision) return a.revision < b.revision ? -1 : 1
+  if (a.build !== b.build) return a.build < b.build ? -1 : 1
   return 0
 }
 
@@ -111,5 +123,5 @@ export function selectLatestRelease(payload: unknown): SystemRelease | null {
 }
 
 export function getSystemReleaseUrl(release: SystemRelease): string {
-  return `https://github.com/QuantumNous/new-api/releases/tag/${encodeURIComponent(release.tag_name)}`
+  return `https://github.com/${SYSTEM_RELEASE_REPOSITORY}/releases/tag/${encodeURIComponent(release.tag_name)}`
 }

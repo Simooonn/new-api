@@ -795,6 +795,28 @@ describe('update cache and scheduling', () => {
   })
 
   test.each([
+    ['v1.0.0-rc.44-ace.1', true],
+    ['v1.0.0-rc.44-ace.2', false],
+    ['v1.0.0-rc.44', true],
+  ])(
+    'reports the fork release v1.0.0-rc.44-ace.2 as an update for server version %s: %s',
+    async (serverVersion, expected) => {
+      respondWithRelease('v1.0.0-rc.44-ace.2')
+      client.setQueryData(STATUS_QUERY_KEY, { version: serverVersion })
+      vi.mocked(api.get).mockResolvedValue({
+        data: { success: true, data: { version: serverVersion } },
+      })
+      const hook = renderHook(useSystemUpdate, { wrapper: Wrapper })
+      await waitFor(() =>
+        expect(hook.result.current.snapshot?.release?.tag_name).toBe(
+          'v1.0.0-rc.44-ace.2'
+        )
+      )
+      expect(hook.result.current.hasUpdate).toBe(expected)
+    }
+  )
+
+  test.each([
     [403, '[]', 'rate-limit'],
     [500, '[]', 'network'],
     [200, '{}', 'payload'],

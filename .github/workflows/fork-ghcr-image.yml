@@ -1,0 +1,68 @@
+name: Publish fork image (GHCR)
+
+# Fork releases: tags like v1.0.0-rc.44-ace.1 publish ghcr.io/<owner>/new-api.
+# The upstream Docker Hub workflows are disabled in the fork instead of edited.
+on:
+  push:
+    tags:
+      - 'v*-ace.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build (e.g., v1.0.0-rc.44-ace.1)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Build & push linux/amd64
+    if: github.repository != 'QuantumNous/new-api'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Resolve tag & write VERSION
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-${GITHUB_REF#refs/tags/}}"
+          if ! [[ "$TAG" =~ ^v[0-9]+(\.[0-9]+){2,}.*-ace\.[1-9][0-9]*$ ]]; then
+            echo "::error::Tag '$TAG' is not a fork release tag (v<upstream>-ace.N)"
+            exit 1
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "$TAG" > VERSION
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c99871dec2022cc055c062a10cc1a1310835ceb4 # v4.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            VITE_UPDATE_REPOSITORY=${{ github.repository }}
+          tags: |
+            ${{ env.IMAGE }}:${{ env.TAG }}
+            ${{ env.IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.TAG }}
+            org.opencontainers.image.revision=${{ github.sha }}
