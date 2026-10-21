@@ -10,9 +10,14 @@
 #   ./docker-upgrade.sh rollback [image]      # default: previous image
 #   ./docker-upgrade.sh status
 #
-# Upgrade steps: pg_dump backup -> pull -> pin the current image under a
-# rollback tag -> recreate new-api -> wait for /api/status to report the
-# expected version. A failed health check switches back automatically.
+# Upgrade steps: pull -> pin the current image under a rollback tag ->
+# recreate new-api -> wait for /api/status to report the expected version.
+# A failed health check switches back automatically.
+#
+# Schema changes are additive between adjacent releases, so rollback only
+# switches the image and never restores the database. The optional pg_dump is
+# a disaster-recovery copy, not a rollback step: restoring it would discard
+# everything written after the upgrade.
 #
 # Environment:
 #   PROJECT_DIR      compose project dir (default: current directory)
@@ -22,7 +27,7 @@
 #   PG_USER, PG_DB   pg_dump target (default: root / new-api)
 #   STATUS_URL       health endpoint (default: http://127.0.0.1:3001/api/status)
 #   HEALTH_TIMEOUT   seconds to wait for health (default: 180)
-#   SKIP_BACKUP=1    skip pg_dump (rollback never backs up)
+#   BACKUP=1         take a pg_dump before upgrading (default: off)
 #   KEEP_BACKUPS     number of dumps kept in .upgrade/backups (default: 5)
 #   DOCKER           docker command (default: "docker", or "sudo -n docker"
 #                    when the socket is not accessible)
@@ -74,7 +79,7 @@ die() {
 }
 
 usage() {
-  sed -n '2,28p' "$0"
+  sed -n '2,33p' "$0"
 }
 
 compose() {
@@ -170,9 +175,11 @@ backup_database() {
   mkdir -p "$BACKUP_DIR"
   file="$BACKUP_DIR/$PG_DB-$(date '+%Y%m%d-%H%M%S').dump"
   log "backing up database to $file"
-  $DOCKER exec "$PG_CONTAINER" pg_dump -U "$PG_USER" -Fc "$PG_DB" > "$file" ||
+  $DOCKER exec "$PG_CONTAINER" pg_dump -U "$PG_USER" -Fc "$PG_DB" > "$file" || {
+    rm -f "$file"
     die "pg_dump failed; nothing was changed"
-  [ -s "$file" ] || die "backup file is empty; nothing was changed"
+  }
+  [ -s "$file" ] || { rm -f "$file"; die "backup file is empty; nothing was changed"; }
   log "backup size: $(du -h "$file" | cut -f1)"
   ls -t "$BACKUP_DIR"/*.dump | tail -n +"$((KEEP_BACKUPS + 1))" | xargs -r rm -f
 }
@@ -186,7 +193,7 @@ cmd_upgrade() {
   [ -n "$current_id" ] || die "service '$SERVICE' has no running container"
   current_version="$(reported_version || true)"
 
-  if [ "${SKIP_BACKUP:-0}" != "1" ]; then
+  if [ "${BACKUP:-0}" = "1" ]; then
     backup_database
   fi
 
