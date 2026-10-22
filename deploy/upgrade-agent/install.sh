@@ -44,7 +44,7 @@ install_agent() {
   sudo systemctl enable --now new-api-upgrade-agent.path new-api-upgrade-agent-heartbeat.timer
   sudo systemctl start new-api-upgrade-agent-heartbeat.service
   echo "installed; control dir: $control_dir; agent runs as $run_user"
-  cat "$control_dir/agent.json" 2>/dev/null && echo
+  cat "$control_dir/outbox/agent.json" 2>/dev/null && echo || true
 }
 
 uninstall_agent() {
