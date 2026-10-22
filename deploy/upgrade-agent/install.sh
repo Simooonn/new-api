@@ -19,9 +19,10 @@ UNITS=(new-api-upgrade-agent.path new-api-upgrade-agent.service
 SYSTEMD_DIR=/etc/systemd/system
 
 install_agent() {
-  local project_dir control_dir unit
+  local project_dir control_dir run_user unit
   project_dir="$(cd "${1:-$SCRIPT_DIR/../..}" && pwd)"
   control_dir="$project_dir/upgrade-control"
+  run_user="$(stat -c %U "$project_dir")"
   [ -x "$project_dir/docker-upgrade.sh" ] || {
     echo "error: $project_dir/docker-upgrade.sh not found or not executable" >&2
     exit 1
@@ -31,12 +32,13 @@ install_agent() {
   chmod +x "$SCRIPT_DIR/new-api-upgrade-agent.sh"
   for unit in "${UNITS[@]}"; do
     sed -e "s#@PROJECT_DIR@#$project_dir#g" -e "s#@CONTROL_DIR@#$control_dir#g" \
+      -e "s#@RUN_USER@#$run_user#g" \
       "$SCRIPT_DIR/$unit" | sudo tee "$SYSTEMD_DIR/$unit" >/dev/null
   done
   sudo systemctl daemon-reload
   sudo systemctl enable --now new-api-upgrade-agent.path new-api-upgrade-agent-heartbeat.timer
   sudo systemctl start new-api-upgrade-agent-heartbeat.service
-  echo "installed; control dir: $control_dir"
+  echo "installed; control dir: $control_dir; agent runs as $run_user"
   cat "$control_dir/agent.json" 2>/dev/null && echo
 }
 

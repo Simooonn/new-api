@@ -5,6 +5,9 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+# Run as the project owner so files under .upgrade/ stay writable for manual
+# docker-upgrade.sh runs; docker is reached through sudo.
+User=@RUN_USER@
 Environment=PROJECT_DIR=@PROJECT_DIR@
 Environment=CONTROL_DIR=@CONTROL_DIR@
 Environment=IMAGE_REPO=ghcr.io/simooonn/new-api
