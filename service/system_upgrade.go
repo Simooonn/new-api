@@ -45,7 +45,6 @@ const (
 	SystemUpgradePhasePulling     = "pulling"
 	SystemUpgradePhaseRecreating  = "recreating"
 	SystemUpgradePhaseHealthCheck = "health_check"
-	SystemUpgradePhaseRollingBack = "rolling_back"
 	SystemUpgradePhaseSucceeded   = "succeeded"
 	SystemUpgradePhaseFailed      = "failed"
 )
@@ -167,12 +166,6 @@ func queuedSystemUpgradeStatus(request SystemUpgradeRequest) *SystemUpgradeStatu
 	}
 }
 
-type systemVersion struct {
-	core []*big.Int
-	// stage, sequence, i18nfix revision, fork build number
-	trailer [4]*big.Int
-}
-
 // TakeFinishedSystemUpgrade returns the last finished upgrade the first time it
 // is called after the upgrade ends, so its outcome is audited exactly once even
 // though the process that accepted the request has been replaced.
@@ -230,6 +223,12 @@ func CompareSystemVersions(left, right string) (int, bool) {
 		}
 	}
 	return 0, true
+}
+
+type systemVersion struct {
+	core []*big.Int
+	// stage, sequence, i18nfix revision, fork build number
+	trailer [4]*big.Int
 }
 
 func parseSystemVersion(value string) (systemVersion, bool) {

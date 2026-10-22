@@ -52,10 +52,10 @@ export type SystemUpgradeState = {
   status: SystemUpgradeStatus | null
 }
 
-export const SYSTEM_UPGRADE_QUERY_KEY = ['system-upgrade'] as const
+const SYSTEM_UPGRADE_QUERY_KEY = ['system-upgrade'] as const
 export const SYSTEM_UPGRADE_POLL_INTERVAL = 2_000
 
-export function isUpgradeRunning(status: SystemUpgradeStatus | null): boolean {
+function isUpgradeRunning(status: SystemUpgradeStatus | null): boolean {
   return Boolean(
     status && status.phase !== 'succeeded' && status.phase !== 'failed'
   )
