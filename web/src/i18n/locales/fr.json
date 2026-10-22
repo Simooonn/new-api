@@ -7303,6 +7303,9 @@
     "Upgrade to {{tag}} was rejected: {{reason}}": "Mise à niveau vers {{tag}} refusée : {{reason}}",
     "Upgraded from {{from}} to {{tag}}": "Mis à niveau de {{from}} vers {{tag}}",
     "Upgrade from {{from}} to {{tag}} failed: {{reason}}": "Échec de la mise à niveau de {{from}} vers {{tag}} : {{reason}}",
-    "The upgrade agent stopped responding.": "L'agent de mise à niveau ne répond plus."
+    "The upgrade agent stopped responding.": "L'agent de mise à niveau ne répond plus.",
+    "Rejected request: not a fork release tag": "Requête refusée : ce n'est pas une version publiée du fork",
+    "Upgrade failed; see the agent log on the host": "Échec de la mise à niveau ; consultez le journal de l'agent sur le serveur",
+    "pull failed; nothing was changed": "Échec du téléchargement de l'image ; rien n'a été modifié"
   }
 }

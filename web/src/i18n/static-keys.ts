@@ -27,6 +27,11 @@ export const STATIC_I18N_KEYS = [
   'Switching back to the previous version',
   'Upgrade finished',
   'Upgrade failed',
+  // Fixed upgrade agent messages shown through t(status.message).
+  'Rejected request: not a fork release tag',
+  'Upgrade failed; see the agent log on the host',
+  'pull failed; nothing was changed',
+  'The upgrade agent stopped responding.',
   'Task usage metadata is unavailable. Pricing details cannot be displayed.',
   'This expression cannot be expanded into a price table. View the original expression below.',
   'This operation is only supported for vLLM or SGLang channels',

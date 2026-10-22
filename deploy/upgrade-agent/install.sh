@@ -6,10 +6,10 @@
 #   deploy/upgrade-agent/install.sh uninstall
 #
 # PROJECT_DIR defaults to the repository that contains this script. Install
-# creates PROJECT_DIR/upgrade-control, renders the units into
+# creates PROJECT_DIR/upgrade-control/{inbox,outbox}, renders the units into
 # /etc/systemd/system and starts the path unit and heartbeat timer. It does not
-# touch docker-compose.yml: mount the control dir into the new-api service and
-# set UPGRADE_CONTROL_DIR yourself (see .agents/rules/fork-release.md).
+# touch docker-compose.yml; run `./docker-upgrade.sh enable-web-upgrade` to
+# mount the control dir (see .agents/rules/fork-release.md).
 
 set -euo pipefail
 
@@ -27,8 +27,11 @@ install_agent() {
     echo "error: $project_dir/docker-upgrade.sh not found or not executable" >&2
     exit 1
   }
-  mkdir -p "$control_dir"
-  chmod 0755 "$control_dir"
+  # inbox is the only part the container can write; outbox is mounted read-only.
+  mkdir -p "$control_dir/inbox" "$control_dir/outbox"
+  chmod 0755 "$control_dir" "$control_dir/inbox" "$control_dir/outbox"
+  # Files from an earlier single-directory layout are no longer read.
+  rm -f "$control_dir/request.json" "$control_dir/status.json" "$control_dir/agent.json" "$control_dir/last-run.log"
   # Keep agent state out of git when the project dir is a checkout.
   [ -f "$control_dir/.gitignore" ] || echo "*" > "$control_dir/.gitignore"
   chmod +x "$SCRIPT_DIR/new-api-upgrade-agent.sh"

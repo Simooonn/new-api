@@ -15,13 +15,18 @@ import (
 	"github.com/QuantumNous/new-api/common"
 )
 
-// System upgrades are carried out by a host agent (deploy/upgrade-agent) that
-// watches a control directory shared with the container. The server only
-// writes a validated request there and reads the agent's status back; it never
-// talks to docker itself.
+// System upgrades are carried out by a host agent (deploy/upgrade-agent). The
+// control directory has two halves: the server writes a validated request into
+// inbox/ and reads the agent's status from outbox/, which is mounted read-only.
+// The server never talks to docker itself.
 
 const (
+	systemUpgradeInbox       = "inbox"
+	systemUpgradeOutbox      = "outbox"
 	systemUpgradeRequestFile = "request.json"
+	// The server's own copy of the last request. The agent consumes
+	// request.json, so this keeps the upgrade visible until the agent reports it.
+	systemUpgradePendingFile = "pending.json"
 	systemUpgradeStatusFile  = "status.json"
 	systemUpgradeAgentFile   = "agent.json"
 	// Records which finished request has already been written to the audit log.
@@ -67,6 +72,7 @@ var systemUpgradeMu sync.Mutex
 type SystemUpgradeRequest struct {
 	Id          string `json:"id"`
 	Tag         string `json:"tag"`
+	FromVersion string `json:"from_version"`
 	RequestedBy int    `json:"requested_by"`
 	RequestedAt string `json:"requested_at"`
 }
@@ -120,6 +126,9 @@ func RequestSystemUpgrade(tag, runningVersion string, userId int, now time.Time)
 	if !systemUpgradeTagPattern.MatchString(tag) {
 		return nil, ErrSystemUpgradeInvalidTag
 	}
+	if _, ok := parseSystemVersion(tag); !ok {
+		return nil, ErrSystemUpgradeInvalidTag
+	}
 	if comparison, ok := CompareSystemVersions(runningVersion, tag); ok && comparison >= 0 {
 		return nil, ErrSystemUpgradeNotNewer
 	}
@@ -139,19 +148,23 @@ func RequestSystemUpgrade(tag, runningVersion string, userId int, now time.Time)
 		return nil, err
 	}
 	requestedAt := now.UTC().Format(time.RFC3339)
-	request := SystemUpgradeRequest{Id: id, Tag: tag, RequestedBy: userId, RequestedAt: requestedAt}
-	status := &SystemUpgradeStatus{
-		Id: id, Tag: tag, Phase: SystemUpgradePhaseQueued,
-		FromVersion: runningVersion, RequestedBy: userId, UpdatedAt: requestedAt,
-	}
-	// Status first, so a concurrent reader never sees a request without it.
-	if err := writeSystemUpgradeFile(dir, systemUpgradeStatusFile, status); err != nil {
+	request := SystemUpgradeRequest{Id: id, Tag: tag, FromVersion: runningVersion, RequestedBy: userId, RequestedAt: requestedAt}
+	inbox := filepath.Join(dir, systemUpgradeInbox)
+	// pending.json first, so the upgrade is never invisible once requested.
+	if err := writeSystemUpgradeFile(inbox, systemUpgradePendingFile, request); err != nil {
 		return nil, err
 	}
-	if err := writeSystemUpgradeFile(dir, systemUpgradeRequestFile, request); err != nil {
+	if err := writeSystemUpgradeFile(inbox, systemUpgradeRequestFile, request); err != nil {
 		return nil, err
 	}
-	return status, nil
+	return queuedSystemUpgradeStatus(request), nil
+}
+
+func queuedSystemUpgradeStatus(request SystemUpgradeRequest) *SystemUpgradeStatus {
+	return &SystemUpgradeStatus{
+		Id: request.Id, Tag: request.Tag, Phase: SystemUpgradePhaseQueued,
+		FromVersion: request.FromVersion, RequestedBy: request.RequestedBy, UpdatedAt: request.RequestedAt,
+	}
 }
 
 type systemVersion struct {
@@ -170,19 +183,24 @@ func TakeFinishedSystemUpgrade(now time.Time) *SystemUpgradeStatus {
 	}
 	systemUpgradeMu.Lock()
 	defer systemUpgradeMu.Unlock()
-	status := currentSystemUpgradeStatus(dir, now)
-	if status == nil || !systemUpgradeFinished(status.Phase) || status.Id == "" {
+	// Only an outcome the agent reported is audited; a timed-out request may
+	// still finish later and must not be recorded as failed first.
+	var status SystemUpgradeStatus
+	if err := readSystemUpgradeFile(filepath.Join(dir, systemUpgradeOutbox), systemUpgradeStatusFile, &status); err != nil {
 		return nil
 	}
-	audited, _ := os.ReadFile(filepath.Join(dir, systemUpgradeAuditedFile))
-	if strings.TrimSpace(string(audited)) == status.Id {
+	if !systemUpgradeFinished(status.Phase) || status.Id == "" {
 		return nil
 	}
-	if err := os.WriteFile(filepath.Join(dir, systemUpgradeAuditedFile), []byte(status.Id), 0o644); err != nil {
+	var audited string
+	if err := readSystemUpgradeFile(filepath.Join(dir, systemUpgradeInbox), systemUpgradeAuditedFile, &audited); err == nil && audited == status.Id {
+		return nil
+	}
+	if err := writeSystemUpgradeFile(filepath.Join(dir, systemUpgradeInbox), systemUpgradeAuditedFile, status.Id); err != nil {
 		common.SysError(common.LogText("failed to record audited upgrade: %v", err))
 		return nil
 	}
-	return status
+	return &status
 }
 
 // CompareSystemVersions orders release tags the way the web console does.
@@ -246,18 +264,24 @@ func systemUpgradeFinished(phase string) bool {
 
 func systemUpgradeAgentOnline(dir string, now time.Time) bool {
 	var agent systemUpgradeAgent
-	if err := readSystemUpgradeFile(dir, systemUpgradeAgentFile, &agent); err != nil {
+	if err := readSystemUpgradeFile(filepath.Join(dir, systemUpgradeOutbox), systemUpgradeAgentFile, &agent); err != nil {
 		return false
 	}
 	updatedAt, err := time.Parse(time.RFC3339, agent.UpdatedAt)
 	return err == nil && now.Sub(updatedAt) < systemUpgradeAgentTTL
 }
 
-// currentSystemUpgradeStatus returns the last status, turning one the agent
-// abandoned into a failure so it no longer blocks new requests.
+// currentSystemUpgradeStatus returns the latest request as queued until the
+// agent reports on it, otherwise the agent's last status. One the agent
+// abandoned is reported as failed so it no longer blocks new requests.
 func currentSystemUpgradeStatus(dir string, now time.Time) *SystemUpgradeStatus {
 	var status SystemUpgradeStatus
-	if err := readSystemUpgradeFile(dir, systemUpgradeStatusFile, &status); err != nil || status.Phase == "" {
+	reported := readSystemUpgradeFile(filepath.Join(dir, systemUpgradeOutbox), systemUpgradeStatusFile, &status) == nil && status.Phase != ""
+	var pending SystemUpgradeRequest
+	if err := readSystemUpgradeFile(filepath.Join(dir, systemUpgradeInbox), systemUpgradePendingFile, &pending); err == nil &&
+		pending.Id != "" && (!reported || status.Id != pending.Id) {
+		status = *queuedSystemUpgradeStatus(pending)
+	} else if !reported {
 		return nil
 	}
 	if systemUpgradeFinished(status.Phase) {

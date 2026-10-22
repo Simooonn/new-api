@@ -61,6 +61,8 @@ export function SystemUpgradeButton(props: UpgradeButtonProps) {
   const confirm = async () => {
     try {
       await props.upgrade.start(props.targetVersion)
+    } catch {
+      // The mutation's onError already reported the failure.
     } finally {
       setConfirming(false)
     }
@@ -91,13 +93,25 @@ export function SystemUpgradeButton(props: UpgradeButtonProps) {
   )
 }
 
-/** Progress and result of the latest web upgrade. */
+/**
+ * Progress and result of the latest web upgrade. A finished result is only
+ * shown while it still describes the running version, so an upgrade done
+ * later from the command line does not leave a stale message behind.
+ */
 export function SystemUpgradeProgress(props: {
   status: SystemUpgradeStatus | null
+  currentVersion?: string
 }) {
   const { t } = useTranslation()
   const status = props.status
   if (!status) return null
+  const current = props.currentVersion
+  if (status.phase === 'succeeded' && current && current !== status.tag) {
+    return null
+  }
+  if (status.phase === 'failed' && current && current !== status.from_version) {
+    return null
+  }
 
   if (status.phase === 'failed') {
     return (
@@ -106,7 +120,7 @@ export function SystemUpgradeProgress(props: {
           <p className='font-medium'>
             {t('Upgrade to {{version}} failed', { version: status.tag })}
           </p>
-          {status.message && <p>{status.message}</p>}
+          {status.message && <p>{t(status.message)}</p>}
           {status.from_version && (
             <p>
               {t('The server is still running {{version}}.', {
@@ -126,7 +140,7 @@ export function SystemUpgradeProgress(props: {
     )
   }
 
-  const current = RUNNING_PHASES.indexOf(status.phase)
+  const step = RUNNING_PHASES.indexOf(status.phase)
   return (
     <div role='status' aria-live='polite' className='space-y-2 text-sm'>
       <p className='font-medium'>
@@ -139,10 +153,8 @@ export function SystemUpgradeProgress(props: {
           RUNNING_PHASES.map((phase, index) => (
             <li
               key={phase}
-              aria-current={index === current ? 'step' : undefined}
-              className={
-                index > current ? 'text-muted-foreground' : 'font-medium'
-              }
+              aria-current={index === step ? 'step' : undefined}
+              className={index > step ? 'text-muted-foreground' : 'font-medium'}
             >
               {t(PHASE_LABELS[phase])}
             </li>

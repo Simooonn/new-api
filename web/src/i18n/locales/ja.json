@@ -7303,6 +7303,9 @@
     "Upgrade to {{tag}} was rejected: {{reason}}": "{{tag}} へのアップグレードは拒否されました：{{reason}}",
     "Upgraded from {{from}} to {{tag}}": "{{from}} から {{tag}} にアップグレードしました",
     "Upgrade from {{from}} to {{tag}} failed: {{reason}}": "{{from}} から {{tag}} へのアップグレードに失敗しました：{{reason}}",
-    "The upgrade agent stopped responding.": "アップグレードエージェントが応答しなくなりました。"
+    "The upgrade agent stopped responding.": "アップグレードエージェントが応答しなくなりました。",
+    "Rejected request: not a fork release tag": "リクエストが拒否されました：フォークのリリースタグではありません",
+    "Upgrade failed; see the agent log on the host": "アップグレードに失敗しました。サーバー上のエージェントログを確認してください",
+    "pull failed; nothing was changed": "イメージの取得に失敗しました。何も変更されていません"
   }
 }

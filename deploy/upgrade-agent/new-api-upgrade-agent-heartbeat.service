@@ -9,3 +9,5 @@ User=@RUN_USER@
 Environment=PROJECT_DIR=@PROJECT_DIR@
 Environment=CONTROL_DIR=@CONTROL_DIR@
 ExecStart=@PROJECT_DIR@/deploy/upgrade-agent/new-api-upgrade-agent.sh heartbeat
+ProtectHome=read-only
+ReadWritePaths=@PROJECT_DIR@

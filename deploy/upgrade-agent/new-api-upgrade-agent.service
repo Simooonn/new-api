@@ -13,3 +13,8 @@ Environment=CONTROL_DIR=@CONTROL_DIR@
 Environment=IMAGE_REPO=ghcr.io/simooonn/new-api
 ExecStart=@PROJECT_DIR@/deploy/upgrade-agent/new-api-upgrade-agent.sh run
 TimeoutStartSec=900
+# Let an upgrade finish even if the agent itself exits early.
+KillMode=process
+# Defense in depth: the agent only needs the project dir.
+ProtectHome=read-only
+ReadWritePaths=@PROJECT_DIR@

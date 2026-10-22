@@ -177,7 +177,10 @@ export function SystemUpdateDialog(props: SystemUpdateDialogProps) {
           {statusText}
         </p>
       )}
-      <SystemUpgradeProgress status={upgrade.status} />
+      <SystemUpgradeProgress
+        status={upgrade.status}
+        currentVersion={update.currentVersion}
+      />
       {!update.online && (
         <Alert>
           <AlertDescription>

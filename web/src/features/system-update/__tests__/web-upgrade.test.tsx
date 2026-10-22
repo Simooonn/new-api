@@ -30,6 +30,7 @@ import {
   within,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import i18n from 'i18next'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -41,9 +42,10 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import { useSystemUpdatePreferencesStore, useSystemUpdateStore } from '../store'
 import { SystemUpdateAction } from '../system-update-action'
-import type {
-  SystemUpgradeState,
-  SystemUpgradeStatus,
+import {
+  SYSTEM_UPGRADE_POLL_INTERVAL,
+  type SystemUpgradeState,
+  type SystemUpgradeStatus,
 } from '../use-system-upgrade'
 
 const LATEST = 'v1.0.0-rc.44-ace.3'
@@ -227,6 +229,7 @@ describe('web upgrade', () => {
   })
 
   test('keeps polling while the service restarts and reports success with the new version', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     const { user, dialog } = await openDialog()
     await user.click(
       await within(dialog).findByRole('button', {
@@ -239,20 +242,17 @@ describe('web upgrade', () => {
       })
     )
     await within(dialog).findByText(`Upgrading to ${LATEST}`)
-
-    // The container is being replaced: status requests fail, polling goes on.
-    upgradeState = new Error('Network Error')
     const statusCalls = () =>
       vi
         .mocked(api.get)
         .mock.calls.filter(([url]) => url === '/api/system/upgrade').length
+
+    // The container is being replaced: status requests fail, polling goes on.
+    upgradeState = new Error('Network Error')
     const callsBeforeOutage = statusCalls()
-    await waitFor(
-      () => expect(statusCalls()).toBeGreaterThan(callsBeforeOutage),
-      {
-        timeout: 4_000,
-      }
-    )
+    await vi.advanceTimersByTimeAsync(SYSTEM_UPGRADE_POLL_INTERVAL)
+    await vi.advanceTimersByTimeAsync(SYSTEM_UPGRADE_POLL_INTERVAL)
+    expect(statusCalls()).toBeGreaterThan(callsBeforeOutage + 1)
     expect(
       within(dialog).getByText(`Upgrading to ${LATEST}`)
     ).toBeInTheDocument()
@@ -263,17 +263,51 @@ describe('web upgrade', () => {
       agent_online: true,
       status: upgradeStatus('succeeded'),
     }
+    await vi.advanceTimersByTimeAsync(SYSTEM_UPGRADE_POLL_INTERVAL)
     expect(
-      await within(dialog).findByText(
-        `Upgraded to ${LATEST}`,
-        {},
-        { timeout: 4_000 }
-      )
+      await within(dialog).findByText(`Upgraded to ${LATEST}`)
     ).toBeInTheDocument()
     await waitFor(() =>
       expect(client.getQueryData(STATUS_QUERY_KEY)).toEqual({ version: LATEST })
     )
-  }, 15_000)
+  })
+
+  test('hides a finished result once the server runs a different version', async () => {
+    serverVersion = 'v1.0.0-rc.44-ace.2'
+    upgradeState = {
+      enabled: true,
+      agent_online: true,
+      status: upgradeStatus('succeeded'),
+    }
+    const { dialog } = await openDialog()
+    await within(dialog).findByRole('button', { name: `Upgrade to ${LATEST}` })
+    expect(
+      within(dialog).queryByText(`Upgraded to ${LATEST}`)
+    ).not.toBeInTheDocument()
+  })
+
+  test('translates a fixed message from the upgrade agent', async () => {
+    i18n.addResource(
+      'zh',
+      'translation',
+      'pull failed; nothing was changed',
+      '拉取镜像失败，未做任何改动'
+    )
+    await i18n.changeLanguage('zh')
+    upgradeState = {
+      enabled: true,
+      agent_online: true,
+      status: upgradeStatus('failed', 'pull failed; nothing was changed'),
+    }
+    try {
+      const { dialog } = await openDialog()
+      expect(
+        await within(dialog).findByText('拉取镜像失败，未做任何改动')
+      ).toBeInTheDocument()
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
 
   test('shows the failure reason and the version that is still running', async () => {
     upgradeState = {

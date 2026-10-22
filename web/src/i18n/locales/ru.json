@@ -7303,6 +7303,9 @@
     "Upgrade to {{tag}} was rejected: {{reason}}": "Обновление до {{tag}} отклонено: {{reason}}",
     "Upgraded from {{from}} to {{tag}}": "Обновлено с {{from}} до {{tag}}",
     "Upgrade from {{from}} to {{tag}} failed: {{reason}}": "Не удалось обновить с {{from}} до {{tag}}: {{reason}}",
-    "The upgrade agent stopped responding.": "Агент обновления перестал отвечать."
+    "The upgrade agent stopped responding.": "Агент обновления перестал отвечать.",
+    "Rejected request: not a fork release tag": "Запрос отклонён: это не релиз форка",
+    "Upgrade failed; see the agent log on the host": "Обновление не удалось; смотрите журнал агента на сервере",
+    "pull failed; nothing was changed": "Не удалось загрузить образ; ничего не изменено"
   }
 }

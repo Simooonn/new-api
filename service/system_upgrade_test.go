@@ -14,21 +14,27 @@ import (
 func setUpSystemUpgradeDir(t *testing.T, agentAge time.Duration) (string, time.Time) {
 	t.Helper()
 	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, systemUpgradeInbox), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, systemUpgradeOutbox), 0o755))
 	t.Setenv("UPGRADE_CONTROL_DIR", dir)
 	now := time.Date(2026, 10, 22, 10, 0, 0, 0, time.UTC)
 	if agentAge >= 0 {
-		writeSystemUpgradeTestFile(t, dir, systemUpgradeAgentFile, systemUpgradeAgent{
+		writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeAgentFile, systemUpgradeAgent{
 			Version: "1", UpdatedAt: now.Add(-agentAge).Format(time.RFC3339),
 		})
 	}
 	return dir, now
 }
 
-func writeSystemUpgradeTestFile(t *testing.T, dir, name string, v any) {
+func writeSystemUpgradeTestFile(t *testing.T, dir, half, name string, v any) {
 	t.Helper()
 	data, err := common.Marshal(v)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, name), data, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, half, name), data, 0o644))
+}
+
+func systemUpgradeRequestPath(dir string) string {
+	return filepath.Join(dir, systemUpgradeInbox, systemUpgradeRequestFile)
 }
 
 func TestCompareSystemVersionsMatchesConsoleOrdering(t *testing.T) {
@@ -90,13 +96,14 @@ func TestSystemUpgradeRequiresFreshAgentHeartbeat(t *testing.T) {
 				return
 			}
 			assert.ErrorIs(t, err, ErrSystemUpgradeAgentOffline)
-			assert.NoFileExists(t, filepath.Join(dir, systemUpgradeRequestFile))
+			assert.NoFileExists(t, systemUpgradeRequestPath(dir))
 		})
 	}
 }
 
 func TestSystemUpgradeRejectsTagsTheAgentWouldRefuse(t *testing.T) {
 	for _, tag := range []string{
+		"v9.9.9-x-ace.1",
 		"v1.0.0-rc.45",
 		"ghcr.io/other/new-api:v1.0.0-ace.1",
 		"v1.0.0-ace.1;touch /tmp/x",
@@ -109,7 +116,7 @@ func TestSystemUpgradeRejectsTagsTheAgentWouldRefuse(t *testing.T) {
 		_, err := RequestSystemUpgrade(tag, "v1.0.0-rc.44-ace.2", 1, now)
 
 		assert.ErrorIs(t, err, ErrSystemUpgradeInvalidTag, "tag %q", tag)
-		assert.NoFileExists(t, filepath.Join(dir, systemUpgradeRequestFile), "tag %q", tag)
+		assert.NoFileExists(t, systemUpgradeRequestPath(dir), "tag %q", tag)
 	}
 }
 
@@ -129,16 +136,18 @@ func TestSystemUpgradeWritesOnlyTheRequestFields(t *testing.T) {
 	status, err := RequestSystemUpgrade(" v1.0.0-rc.44-ace.3 ", "v1.0.0-rc.44-ace.2", 7, now)
 	require.NoError(t, err)
 
-	data, err := os.ReadFile(filepath.Join(dir, systemUpgradeRequestFile))
+	data, err := os.ReadFile(systemUpgradeRequestPath(dir))
 	require.NoError(t, err)
 	var raw map[string]any
 	require.NoError(t, common.Unmarshal(data, &raw))
 	assert.Equal(t, map[string]any{
 		"id":           status.Id,
 		"tag":          "v1.0.0-rc.44-ace.3",
+		"from_version": "v1.0.0-rc.44-ace.2",
 		"requested_by": float64(7),
 		"requested_at": "2026-10-22T10:00:00Z",
 	}, raw)
+	assert.NoFileExists(t, filepath.Join(dir, systemUpgradeOutbox, systemUpgradeStatusFile), "only the agent writes the outbox")
 	assert.Equal(t, SystemUpgradePhaseQueued, status.Phase)
 	assert.Equal(t, "v1.0.0-rc.44-ace.2", status.FromVersion)
 	assert.Equal(t, status, GetSystemUpgradeState(now).Status)
@@ -161,7 +170,7 @@ func TestSystemUpgradeAllowsOneRunAtATime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir, now := setUpSystemUpgradeDir(t, time.Second)
-			writeSystemUpgradeTestFile(t, dir, systemUpgradeStatusFile, SystemUpgradeStatus{
+			writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, SystemUpgradeStatus{
 				Id: "previous", Tag: "v1.0.0-rc.44-ace.2", Phase: tt.phase,
 				UpdatedAt: now.Add(-tt.age).Format(time.RFC3339),
 			})
@@ -179,7 +188,7 @@ func TestSystemUpgradeAllowsOneRunAtATime(t *testing.T) {
 
 func TestSystemUpgradeReportsAbandonedRunAsFailed(t *testing.T) {
 	dir, now := setUpSystemUpgradeDir(t, time.Second)
-	writeSystemUpgradeTestFile(t, dir, systemUpgradeStatusFile, SystemUpgradeStatus{
+	writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, SystemUpgradeStatus{
 		Id: "previous", Tag: "v1.0.0-rc.44-ace.3", Phase: SystemUpgradePhaseHealthCheck,
 		UpdatedAt: now.Add(-30 * time.Minute).Format(time.RFC3339),
 	})
@@ -197,12 +206,12 @@ func TestSystemUpgradeOutcomeIsTakenOnce(t *testing.T) {
 		Id: "req-1", Tag: "v1.0.0-rc.44-ace.3", Phase: SystemUpgradePhaseRecreating,
 		RequestedBy: 7, UpdatedAt: now.Format(time.RFC3339),
 	}
-	writeSystemUpgradeTestFile(t, dir, systemUpgradeStatusFile, running)
+	writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, running)
 	assert.Nil(t, TakeFinishedSystemUpgrade(now), "a running upgrade has no outcome yet")
 
 	finished := running
 	finished.Phase = SystemUpgradePhaseSucceeded
-	writeSystemUpgradeTestFile(t, dir, systemUpgradeStatusFile, finished)
+	writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, finished)
 
 	taken := TakeFinishedSystemUpgrade(now)
 	require.NotNil(t, taken)
@@ -212,8 +221,78 @@ func TestSystemUpgradeOutcomeIsTakenOnce(t *testing.T) {
 
 	next := finished
 	next.Id, next.Phase = "req-2", SystemUpgradePhaseFailed
-	writeSystemUpgradeTestFile(t, dir, systemUpgradeStatusFile, next)
+	writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, next)
 	taken = TakeFinishedSystemUpgrade(now)
 	require.NotNil(t, taken)
 	assert.Equal(t, "req-2", taken.Id)
+}
+
+func TestSystemUpgradeAuditsOnlyOutcomesTheAgentReported(t *testing.T) {
+	dir, now := setUpSystemUpgradeDir(t, time.Second)
+	writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, SystemUpgradeStatus{
+		Id: "req-1", Tag: "v1.0.0-rc.44-ace.3", Phase: SystemUpgradePhasePulling,
+		UpdatedAt: now.Add(-30 * time.Minute).Format(time.RFC3339),
+	})
+	require.Equal(t, SystemUpgradePhaseFailed, GetSystemUpgradeState(now).Status.Phase, "shown as failed after the timeout")
+	assert.Nil(t, TakeFinishedSystemUpgrade(now), "a timeout is not an outcome to audit")
+
+	writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, SystemUpgradeStatus{
+		Id: "req-1", Tag: "v1.0.0-rc.44-ace.3", Phase: SystemUpgradePhaseSucceeded,
+		UpdatedAt: now.Format(time.RFC3339),
+	})
+	taken := TakeFinishedSystemUpgrade(now)
+	require.NotNil(t, taken)
+	assert.Equal(t, SystemUpgradePhaseSucceeded, taken.Phase)
+}
+
+func TestSystemUpgradeStaysVisibleAfterTheAgentClaimsTheRequest(t *testing.T) {
+	dir, now := setUpSystemUpgradeDir(t, time.Second)
+	writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, SystemUpgradeStatus{
+		Id: "previous", Tag: "v1.0.0-rc.44-ace.2", Phase: SystemUpgradePhaseSucceeded,
+		UpdatedAt: now.Add(-time.Hour).Format(time.RFC3339),
+	})
+	queued, err := RequestSystemUpgrade("v1.0.0-rc.44-ace.3", "v1.0.0-rc.44-ace.2", 1, now)
+	require.NoError(t, err)
+
+	// The agent moved request.json away but has not written a status yet.
+	require.NoError(t, os.Remove(systemUpgradeRequestPath(dir)))
+
+	status := GetSystemUpgradeState(now).Status
+	require.NotNil(t, status)
+	assert.Equal(t, queued.Id, status.Id)
+	assert.Equal(t, SystemUpgradePhaseQueued, status.Phase)
+	_, err = RequestSystemUpgrade("v1.0.0-rc.44-ace.3", "v1.0.0-rc.44-ace.2", 1, now)
+	assert.ErrorIs(t, err, ErrSystemUpgradeInProgress)
+
+	writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeStatusFile, SystemUpgradeStatus{
+		Id: queued.Id, Tag: "v1.0.0-rc.44-ace.3", Phase: SystemUpgradePhasePulling,
+		UpdatedAt: now.Format(time.RFC3339),
+	})
+	assert.Equal(t, SystemUpgradePhasePulling, GetSystemUpgradeState(now).Status.Phase, "the agent's report takes over")
+}
+
+func TestSystemUpgradeRequestTheAgentNeverClaimsExpires(t *testing.T) {
+	dir, now := setUpSystemUpgradeDir(t, time.Second)
+	// The agent stays alive but never claims the request.
+	heartbeat := func(at time.Time) {
+		writeSystemUpgradeTestFile(t, dir, systemUpgradeOutbox, systemUpgradeAgentFile, systemUpgradeAgent{
+			Version: "1", UpdatedAt: at.Format(time.RFC3339),
+		})
+	}
+	_, err := RequestSystemUpgrade("v1.0.0-rc.44-ace.3", "v1.0.0-rc.44-ace.2", 1, now)
+	require.NoError(t, err)
+
+	soon := now.Add(4 * time.Minute)
+	heartbeat(soon)
+	_, err = RequestSystemUpgrade("v1.0.0-rc.44-ace.3", "v1.0.0-rc.44-ace.2", 1, soon)
+	assert.ErrorIs(t, err, ErrSystemUpgradeInProgress)
+
+	later := now.Add(6 * time.Minute)
+	heartbeat(later)
+	status := GetSystemUpgradeState(later).Status
+	require.NotNil(t, status)
+	assert.Equal(t, SystemUpgradePhaseFailed, status.Phase)
+	assert.Nil(t, TakeFinishedSystemUpgrade(later), "an expired request is not an agent outcome")
+	_, err = RequestSystemUpgrade("v1.0.0-rc.44-ace.3", "v1.0.0-rc.44-ace.2", 1, later)
+	assert.NoError(t, err)
 }

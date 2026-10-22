@@ -7303,6 +7303,9 @@
     "Upgrade to {{tag}} was rejected: {{reason}}": "Nâng cấp lên {{tag}} bị từ chối: {{reason}}",
     "Upgraded from {{from}} to {{tag}}": "Đã nâng cấp từ {{from}} lên {{tag}}",
     "Upgrade from {{from}} to {{tag}} failed: {{reason}}": "Nâng cấp từ {{from}} lên {{tag}} thất bại: {{reason}}",
-    "The upgrade agent stopped responding.": "Tác nhân nâng cấp đã ngừng phản hồi."
+    "The upgrade agent stopped responding.": "Tác nhân nâng cấp đã ngừng phản hồi.",
+    "Rejected request: not a fork release tag": "Yêu cầu bị từ chối: không phải phiên bản phát hành của bản fork",
+    "Upgrade failed; see the agent log on the host": "Nâng cấp thất bại; hãy xem nhật ký tác nhân trên máy chủ",
+    "pull failed; nothing was changed": "Tải image thất bại; không có thay đổi nào"
   }
 }

@@ -7303,6 +7303,9 @@
     "Upgrade to {{tag}} was rejected: {{reason}}": "Upgrade to {{tag}} was rejected: {{reason}}",
     "Upgraded from {{from}} to {{tag}}": "Upgraded from {{from}} to {{tag}}",
     "Upgrade from {{from}} to {{tag}} failed: {{reason}}": "Upgrade from {{from}} to {{tag}} failed: {{reason}}",
-    "The upgrade agent stopped responding.": "The upgrade agent stopped responding."
+    "The upgrade agent stopped responding.": "The upgrade agent stopped responding.",
+    "Rejected request: not a fork release tag": "Rejected request: not a fork release tag",
+    "Upgrade failed; see the agent log on the host": "Upgrade failed; see the agent log on the host",
+    "pull failed; nothing was changed": "pull failed; nothing was changed"
   }
 }

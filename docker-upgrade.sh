@@ -133,16 +133,19 @@ running_image_id() {
 }
 
 reported_version() {
-  # /api/status is JSON; extract data.version without requiring jq.
+  # /api/status is JSON; extract data.version without requiring jq. The value
+  # comes from the container, so anything that is not a plain version string
+  # is dropped before it reaches logs or state files.
   curl -fsS --max-time 5 "$STATUS_URL" 2>/dev/null |
-    python3 -c 'import json,sys
+    python3 -c 'import json,re,sys
 try:
     d = json.load(sys.stdin)
 except Exception:
     sys.exit(1)
 if d.get("success") is not True:
     sys.exit(1)
-print((d.get("data") or {}).get("version") or "")'
+v = (d.get("data") or {}).get("version") or ""
+print(v if isinstance(v, str) and re.fullmatch(r"[0-9A-Za-z.+-]{1,64}", v) else "")'
 }
 
 write_override() {
@@ -153,9 +156,11 @@ write_override() {
     echo "  $SERVICE:"
     echo "    image: $image"
     # The web upgrade agent's control dir rides along so a rewrite keeps it.
+    # The container may only write requests; agent output is read-only to it.
     if [ -n "$CONTROL_DIR" ]; then
       echo "    volumes:"
-      echo "      - $CONTROL_DIR:/upgrade-control"
+      echo "      - $CONTROL_DIR/inbox:/upgrade-control/inbox"
+      echo "      - $CONTROL_DIR/outbox:/upgrade-control/outbox:ro"
       echo "    environment:"
       echo "      - UPGRADE_CONTROL_DIR=/upgrade-control"
     fi
@@ -272,7 +277,7 @@ cmd_status() {
 # upgrades. Recreates only the service; the version stays the same.
 cmd_enable_web_upgrade() {
   local image version
-  [ -n "$CONTROL_DIR" ] && [ -d "$CONTROL_DIR" ] ||
+  [ -n "$CONTROL_DIR" ] && [ -d "$CONTROL_DIR/inbox" ] && [ -d "$CONTROL_DIR/outbox" ] ||
     die "control dir not found; run deploy/upgrade-agent/install.sh install first"
   image="$(running_image)"
   [ -n "$image" ] || die "service '$SERVICE' has no running container"

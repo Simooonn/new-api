@@ -7303,6 +7303,9 @@
     "Upgrade to {{tag}} was rejected: {{reason}}": "升級到 {{tag}} 被拒絕：{{reason}}",
     "Upgraded from {{from}} to {{tag}}": "已從 {{from}} 升級到 {{tag}}",
     "Upgrade from {{from}} to {{tag}} failed: {{reason}}": "從 {{from}} 升級到 {{tag}} 失敗：{{reason}}",
-    "The upgrade agent stopped responding.": "升級代理已停止回應。"
+    "The upgrade agent stopped responding.": "升級代理已停止回應。",
+    "Rejected request: not a fork release tag": "請求被拒絕：不是 fork 發佈的版本",
+    "Upgrade failed; see the agent log on the host": "升級失敗，請查看伺服器上的代理日誌",
+    "pull failed; nothing was changed": "拉取映像失敗，未做任何變更"
   }
 }
