@@ -29,6 +29,8 @@ install_agent() {
   }
   mkdir -p "$control_dir"
   chmod 0755 "$control_dir"
+  # Keep agent state out of git when the project dir is a checkout.
+  [ -f "$control_dir/.gitignore" ] || echo "*" > "$control_dir/.gitignore"
   chmod +x "$SCRIPT_DIR/new-api-upgrade-agent.sh"
   for unit in "${UNITS[@]}"; do
     sed -e "s#@PROJECT_DIR@#$project_dir#g" -e "s#@CONTROL_DIR@#$control_dir#g" \
