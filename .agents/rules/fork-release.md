@@ -16,7 +16,7 @@ Conventions for the Simooonn/new-api fork: releases cut from `feature/ace`, and 
 **Release mechanics:**
 
 - Tag on `feature/ace` as `v<latest upstream release contained in feature/ace>-ace.N`. N starts at 1 and restarts after merging a new upstream release, e.g. `v1.0.0-rc.44-ace.2` → `v1.0.0-rc.45-ace.1`.
-- A tag runs `.github/workflows/fork-ghcr-image.yml` (`ghcr.io/simooonn/new-api:<tag>` and `:latest`, linux/amd64) and `.github/workflows/release.yml` (binaries). The upstream Docker Hub workflows stay disabled in the fork.
+- A tag runs `.github/workflows/fork-ghcr-image.yml` and `.github/workflows/release.yml` (binaries). The image is pushed (`ghcr.io/simooonn/new-api:<tag>` and `:latest`, linux/amd64) only after `.github/workflows/fork-checks.yml` (backend vet/build/test, frontend typecheck/test) passes; the same workflow then writes the GitHub Release notes from the commits since the previous ace tag, or turns the Release back into a draft when checks fail so the console never offers a version without an image. Run Fork checks by hand to test a branch before tagging. It skips `TestAdaptorMasksDialedHostsInDialFailure`, which also fails on upstream; remove the skip when upstream fixes it. The upstream Docker Hub workflows stay disabled in the fork.
 - The admin update check reads the fork's releases through the build-time `VITE_UPDATE_REPOSITORY` override. Do not replace the upstream default in code; it is a protected identifier in `AGENTS.md`.
 - Upgrade production from the compose project directory with `./docker-upgrade.sh upgrade <tag>`, roll back with `./docker-upgrade.sh rollback`. The script recreates only the `new-api` service and does not back up the database unless `BACKUP=1` is set.
 

@@ -2,6 +2,9 @@ name: Publish fork image (GHCR)
 
 # Fork releases: tags like v1.0.0-rc.44-ace.1 publish ghcr.io/<owner>/new-api.
 # The upstream Docker Hub workflows are disabled in the fork instead of edited.
+# The image is published only after the fork checks pass; the GitHub Release
+# then gets generated notes, or is turned back into a draft if a check failed
+# so the console does not offer an update without an image.
 on:
   push:
     tags:
@@ -14,9 +17,15 @@ on:
         type: string
 
 jobs:
+  checks:
+    if: github.repository != 'QuantumNous/new-api'
+    uses: ./.github/workflows/fork-checks.yml
+    with:
+      ref: ${{ github.event.inputs.tag || github.ref }}
+
   publish:
     name: Build & push linux/amd64
-    if: github.repository != 'QuantumNous/new-api'
+    needs: checks
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -66,3 +75,85 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ env.TAG }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+  release-notes:
+    name: Release notes
+    needs: [checks, publish]
+    if: always() && github.repository != 'QuantumNous/new-api'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      INPUT_TAG: ${{ github.event.inputs.tag }}
+      PASSED: ${{ needs.checks.result == 'success' && needs.publish.result == 'success' }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      # release.yml creates the Release and uploads binaries from three jobs;
+      # editing it before they finish would make them create a second one.
+      - name: Wait for the binary release
+        run: |
+          TAG="${INPUT_TAG:-${GITHUB_REF#refs/tags/}}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          for _ in $(seq 1 60); do
+            run_id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow release.yml --branch "$TAG" --json databaseId --jq '.[0].databaseId // empty')
+            [ -n "$run_id" ] && break
+            sleep 15
+          done
+          if [ -n "${run_id:-}" ]; then
+            gh run watch "$run_id" -R "$GITHUB_REPOSITORY" --interval 30 > /dev/null || echo "::warning::release.yml did not succeed for $TAG"
+          fi
+
+      - name: Write notes
+        run: |
+          # The previous fork release is the highest ace tag below this one that
+          # is already part of it; tags on the same commit must not count later ones.
+          prev=$(git tag --merged "$TAG" --list 'v*-ace.*' | { cat; echo "$TAG"; } | sort -uV | grep -B1 -xF "$TAG" | grep -vxF "$TAG" | head -1)
+          base="${TAG%-ace.*}"
+          upstream_head=$(git merge-base "$TAG" origin/main)
+          {
+            if [ "$PASSED" != "true" ]; then
+              echo "> Release checks failed, no image was published. Do not install this version."
+              echo
+            fi
+            echo "Upstream base: \`$base\`"
+            if [ -n "$prev" ] && [ "${prev%-ace.*}" != "$base" ]; then
+              echo "(merged upstream: \`${prev%-ace.*}\` → \`$base\`)"
+            fi
+            echo
+            if [ -z "$prev" ]; then
+              echo "First fork release."
+            elif [ "$(git rev-parse "$prev^{commit}")" = "$(git rev-parse "$TAG^{commit}")" ]; then
+              echo "Same code as \`$prev\`; no functional changes."
+            else
+              fork_changes=$(git log --no-merges --format='- %s (%h)' "$prev..$TAG" --not "$upstream_head")
+              echo "### AceHub changes"
+              echo "${fork_changes:-- None}"
+              echo
+              upstream_count=$(git rev-list --no-merges --count "$prev..$upstream_head")
+              if [ "$upstream_count" -gt 0 ]; then
+                echo "### Upstream changes ($upstream_count commits)"
+                git log --no-merges --format='- %s' "$prev..$upstream_head" | head -40
+                [ "$upstream_count" -gt 40 ] && echo "- … and $((upstream_count - 40)) more"
+                echo
+              fi
+              echo "Full diff: https://github.com/$GITHUB_REPOSITORY/compare/$prev...$TAG"
+            fi
+          } > notes.md
+          cat notes.md
+
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --notes-file notes.md
+          elif [ "$PASSED" = "true" ]; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag --notes-file notes.md
+          fi
+          if [ "$PASSED" != "true" ] && gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            # Drafts are skipped by the console update check.
+            gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=true
+          fi
