@@ -12,8 +12,9 @@
 #   ./docker-upgrade.sh enable-web-upgrade    # mount the agent control dir
 #
 # Upgrade steps: pull -> pin the current image under a rollback tag ->
-# recreate new-api -> wait for /api/status to report the expected version.
-# A failed health check switches back automatically.
+# recreate new-api -> wait for /api/status to report the expected version ->
+# remove older images, keeping the running image and the rollback target.
+# A failed health check switches back automatically and removes nothing.
 #
 # Schema changes are additive between adjacent releases, so rollback only
 # switches the image and never restores the database. The optional pg_dump is
@@ -30,6 +31,7 @@
 #   HEALTH_TIMEOUT   seconds to wait for health (default: 180)
 #   BACKUP=1         take a pg_dump before upgrading (default: off)
 #   KEEP_BACKUPS     number of dumps kept in .upgrade/backups (default: 5)
+#   PRUNE_IMAGES=0   keep older images after an upgrade (default: remove them)
 #   CONTROL_DIR      web upgrade control dir mounted into the service
 #                    (default: $PROJECT_DIR/upgrade-control when it exists)
 #   DOCKER           docker command (default: "docker", or "sudo -n docker"
@@ -88,7 +90,7 @@ die() {
 }
 
 usage() {
-  sed -n '2,36p' "$0"
+  sed -n '2,38p' "$0"
 }
 
 compose() {
@@ -205,6 +207,30 @@ backup_database() {
   ls -t "$BACKUP_DIR"/*.dump | tail -n +"$((KEEP_BACKUPS + 1))" | xargs -r rm -f
 }
 
+# Remove the tags of IMAGE_REPO and the rollback tags this script created,
+# except those of the two given image IDs. Docker refuses to remove an image
+# a container still uses; that is logged and skipped.
+prune_images() {
+  local keep_current="$1" keep_previous="$2" ref id
+  $DOCKER images --no-trunc --format '{{.Repository}}:{{.Tag}} {{.ID}}' |
+    while read -r ref id; do
+      case "$ref" in
+        "$IMAGE_REPO":* | new-api:rollback-*) ;;
+        *) continue ;;
+      esac
+      if [ "$id" = "$keep_current" ] || [ "$id" = "$keep_previous" ]; then
+        continue
+      fi
+      # Dangling images have no tag to remove; remove them by ID.
+      [ "${ref##*:}" = "<none>" ] && ref="$id"
+      if $DOCKER rmi "$ref" >/dev/null 2>&1; then
+        log "removed old image $ref"
+      else
+        log "kept old image $ref: docker could not remove it (still used by a container?)"
+      fi
+    done
+}
+
 cmd_upgrade() {
   local target current_id rollback_tag current_version
   [ $# -eq 1 ] || die "upgrade needs exactly one image or tag"
@@ -231,6 +257,10 @@ cmd_upgrade() {
   if switch_to "$target" "$(expected_version "$target")"; then
     echo "$target" > "$STATE_DIR/current-image"
     log "upgrade finished: $target"
+    if [ "${PRUNE_IMAGES:-1}" = "1" ]; then
+      # The upgrade already succeeded; a cleanup problem must not fail it.
+      prune_images "$(running_image_id)" "$current_id" || log "image cleanup failed; older images were kept"
+    fi
     return 0
   fi
 
