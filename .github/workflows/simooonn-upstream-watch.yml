@@ -2,7 +2,7 @@ name: Upstream Watch
 
 # Notify a Lark group when QuantumNous/new-api main has commits the fork's
 # release branch does not have yet. Scheduled runs only happen on the default
-# branch, so the fork's default branch must be the release branch.
+# branch, so the workflow file must exist on the default branch (main).
 on:
   schedule:
     - cron: '23 */3 * * *'
@@ -28,7 +28,7 @@ jobs:
     env:
       UPSTREAM: QuantumNous/new-api
       FORK: ${{ github.repository }}
-      FORK_BRANCH: feature/ace
+      FORK_BRANCH: release
     steps:
       - name: Compare fork release branch with upstream main
         id: cmp
