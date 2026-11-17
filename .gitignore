@@ -27,6 +27,7 @@ tiktoken_cache
 .claude
 .cursor
 .omc/
+.spec-workflow
 
 # Local docker overrides (keep secrets/passwords out of the tracked compose file)
 docker-compose.override.yml
